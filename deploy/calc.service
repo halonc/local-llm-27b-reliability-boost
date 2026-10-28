@@ -1,0 +1,17 @@
+[Unit]
+Description=calc service (Decimal+sympy) - capability multiplier for local LLM
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fcc
+Group=fcc
+ExecStart=/opt/calc/venv/bin/python /opt/calc/calcd_http.py --host 0.0.0.0 --port 8099
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
