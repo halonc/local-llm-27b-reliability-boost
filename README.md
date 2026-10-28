@@ -1,11 +1,10 @@
-# Making a local 27B model reliable on numbers
+# Giving a local 27B a reliability crutch: from 92.7% math accuracy to no more wrong numbers
 
-> One 32 GB GPU, a 27B model quantised to 3-bit, and a home-made test suite.
-> Why we switched back from a QFN model, where the 27B actually failed, and how moving arithmetic out of the model fixed 26 of 27 previously-broken cases.
+> A 27B 3-bit model on a single AMD R9700 32 GB GPU still slips on precision-critical work. This post covers why we moved back to a 27B, where it actually fails, how we took computation out of the model, and how 26 of 27 previously-broken tasks were fixed.
 
-[中文版](README.zh.md) · [Architecture](assets/arch-960x540.png)
+[中文版](README.zh.md) · [Architecture](assets/arch-en.png)
 
-![cover](assets/cover-1280x720.png)
+![cover](assets/cover-en.png)
 
 ## TL;DR
 
