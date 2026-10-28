@@ -1,7 +1,7 @@
 # Making a local 27B model reliable on numbers
 
 > One 32 GB GPU, a 27B model quantised to 3-bit, and a home-made test suite.
-> Why we switched back from a 176B model, where the 27B actually failed, and how moving arithmetic out of the model fixed 26 of 27 previously-broken cases.
+> Why we switched back from a QFN model, where the 27B actually failed, and how moving arithmetic out of the model fixed 26 of 27 previously-broken cases.
 
 [中文版](README.zh.md) · [Architecture](assets/arch-960x540.png)
 
@@ -11,21 +11,23 @@
 
 | | Result |
 |---|---|
-| Why switch back to 27B 3-bit | 1.9× faster cold 200K prefill, 16.7× faster cache hit, 11.1× higher aggregate throughput at 4 concurrent requests; **identical per-group accuracy** vs the 176B on the same 20-task suite |
+| Why switch back to Paiton 27B | 1.9× faster cold 200K prefill, 16.7× faster cache hit, 11.1× higher aggregate throughput at 4 concurrent requests; **identical per-group accuracy** vs QFN on the same 20-task suite |
 | 27B baseline accuracy | 92.7% on 110 everyday-math tasks, 75.7% on 70 advanced-math tasks |
 | Root cause of failures | **Zero of 26 failures were arithmetic** — all were wrong formulas, semantics, unit chains, or boundary definitions |
 | Fix | Move all computation to a persistent `calc` service; write the discipline into the chat template |
 | Outcome | 26/27 broken cases fixed (96%), tool-call rate 27/27 |
 
-## 1. Why we moved from 176B back to 27B 3-bit
+## 1. Why we moved from QFN back to Paiton 27B 3-bit
 
-We had run a 176B MoE model (Qwen3.8-Flash-Next, IQ3_XXS, ~6B activated per token) on the same port for a month. The intuition was simple: more parameters, broader knowledge.
+A while ago we replaced the main model behind port 8080 with **Qwen3.8-Flash-Next** (hereafter **QFN**) — a MoE model, IQ3_XXS quantised, served on the Strata engine. The reasoning was intuitive: more parameters, broader knowledge.
 
-In practice it felt "maybe a little smarter", but **the speed was unbearable**. We ran a controlled comparison: 20 tasks covering 200K long-context reading, engineering drawing OCR, 4-way concurrency, engineering maths, code, and structured output — same prompts, same max_tokens, thinking disabled.
+After a month of use it felt "maybe a little smarter", but compared with [the Paiton 27B](https://github.com/Eliovp-BV/paiton-vllm-plugin/blob/main/models/Qwen3.8-MXFP4-DFlash2/README.md) (W3A4), **the speed and concurrency were unbearable**.
+
+So instead of guessing, we ran a controlled comparison: 20 tasks covering 200K long-context reading, engineering drawing OCR, 4-way concurrency, engineering maths, code, and structured output — same prompts, same max_tokens, thinking disabled.
 
 ### 1.1 Speed
 
-| Metric | 176B (MoE, 3-bit) | **27B (3-bit)** | Ratio |
+| Metric | QFN (IQ3_XXS) | **Paiton 27B (W3A4)** | Ratio |
 |---|---|---|---|
 | Cold 200K TTFT | 176.3 s | **91.3 s** | 1.9× |
 | 200K second pass (cache hit) | 28.4 s | **1.7 s** | **16.7×** |
@@ -33,17 +35,17 @@ In practice it felt "maybe a little smarter", but **the speed was unbearable**. 
 | Aggregate throughput at 4 concurrent | 9.7 tok/s | **107.6 tok/s** | **11.1×** |
 | Total time for 20 tasks | 5.7 min | **2.3 min** | 2.5× |
 
-The concurrency row is the decisive one. The 176B model's four requests had TTFTs of **0.7 / 8.4 / 17.6 / 25.4 s** — the fourth request waited 25 seconds for its first token. That is queueing, not concurrency. The 27B's four requests came back at 0.1 / 0.6 / 0.6 / 0.7 s — genuinely parallel.
+The concurrency row is the decisive one. QFN's four requests had TTFTs of **0.7 / 8.4 / 17.6 / 25.4 s** — the fourth request waited 25 seconds for its first token. That is queueing, not concurrency. The 27B's four requests came back at 0.1 / 0.6 / 0.6 / 0.7 s — genuinely parallel.
 
 For a workflow that runs an agent while chatting, this is not a comfort issue. It decides whether the setup is usable at all.
 
 ### 1.2 Is 3-bit good enough?
 
-The concern was obvious: going from 176B to 27B, then compressing to 3-bit, must cost something.
+The concern was obvious: going from QFN to 27B, then compressing to 3-bit, must cost something.
 
 Same 20 tasks, per group:
 
-| Group | 176B | **27B 3-bit** |
+| Group | QFN | **Paiton 27B (W3A4)** |
 |---|---|---|
 | 200K long context (3) | 3/3 | 3/3 |
 | Engineering drawing OCR (6) | 6/6 | 6/6 |
@@ -55,7 +57,7 @@ Same 20 tasks, per group:
 
 **Every group is identical.** The 0/2 and 1/2 entries are an artefact of strict keyword scoring — manually both models got them right.
 
-In other words: on this task distribution the 176B offered no advantage, while the 27B was an order of magnitude faster. That is the justification for switching back.
+In other words: on this task distribution QFN offered no advantage, while the 27B was an order of magnitude faster. That is the justification for switching back.
 
 ### 1.3 The new problem
 
