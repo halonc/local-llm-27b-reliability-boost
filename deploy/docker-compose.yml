@@ -1,0 +1,100 @@
+services:
+  paiton:
+    image: ghcr.io/eliovp/paiton-vllm-plugin:qwen38-rocm10-vllm029-20261005-r1@sha256:245c71d54f046f89b74dbfbd4c894003754561e55c9d215a8d3ce65364fb0f80
+    container_name: paiton-8080
+    network_mode: host
+    ipc: host
+    shm_size: 64g
+    restart: unless-stopped
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add: [video]
+    security_opt:
+      - label=disable
+    ulimits:
+      memlock: -1
+    volumes:
+      - "/models/qwen38-nvfp4:/models/target:ro"
+      - "/models/qwen38-dflash2:/models/draft:ro"
+      - "/models/runtime-cache:/cache:rw"
+      - "/models/qwen38-w3rot-int3:/models/w3rot:ro"
+      - "./chat_template_calc.jinja:/app/chat_template_calc.jinja:ro"
+    environment:
+      - "CUDA_VISIBLE_DEVICES=0"
+      - "PAITON_HOST_EMBED=1"
+      - "PAITON_HOST_KV_PRIVATE=1"
+      - "PAITON_LMHEAD_W8=1"
+      - "PAITON_PC_EAGLE_TAIL=1"
+      - "PAITON_PC_SPARSE_ALIGN=1"
+      - "PYTORCH_ALLOC_CONF=max_split_size_mb:64,per_process_memory_fraction:0.94"
+      - "RADIANCE_GDN_LAZY=0"
+      - "ROCR_VISIBLE_DEVICES=GPU-2ef270f59296691b"
+    command:
+      - "serve"
+      - "/models/target"
+      - "--tokenizer"
+      - "/models/target"
+      - "--served-model-name"
+      - "R9700-Qwen3.8-27B-W3A4-HIP"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--tensor-parallel-size"
+      - "1"
+      - "--dtype"
+      - "bfloat16"
+      - "--max-model-len"
+      - "262144"
+      - "--max-num-seqs"
+      - "8"
+      - "--max-num-batched-tokens"
+      - "4096"
+      - "--kv-cache-dtype"
+      - "fp8"
+      - "--kv-cache-memory-bytes"
+      - "11870208000"
+      - "--gpu-memory-utilization"
+      - "0.98"
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
+      - "--safetensors-load-strategy"
+      - "lazy"
+      - "--attention-backend"
+      - "R4D"
+      - "--compilation-config"
+      - "{\"cudagraph_capture_sizes\": [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64], \"pass_config\": {\"fuse_norm_quant\": true, \"fuse_act_quant\": true}}"
+      - "--speculative-config"
+      - "{\"method\": \"dflash\", \"model\": \"/models/draft\", \"num_speculative_tokens\": 7, \"draft_tensor_parallel_size\": 1, \"attention_backend\": \"TRITON_ATTN\", \"max_model_len\": 262144, \"disable_padded_drafter_batch\": true, \"draft_sample_method\": \"greedy\"}"
+      - "--mamba-cache-mode"
+      - "align"
+      - "--mamba-cache-dtype"
+      - "bfloat16"
+      - "--mamba-ssm-cache-dtype"
+      - "float16"
+      - "--no-async-scheduling"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "qwen3_coder"
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--override-generation-config"
+      - "{\"temperature\": 0.7, \"top_p\": 0.95, \"top_k\": 20}"
+      - "--seed"
+      - "42"
+      - "--mm-processor-kwargs"
+      - "{\"max_pixels\": 8294400}"
+      - "--mm-processor-cache-gb"
+      - "1"
+      - "--prefix-cache-retention-interval"
+      - "32000"
+      - "--default-chat-template-kwargs"
+      - "{\"enable_thinking\": false}"
+      - "--enable-prompt-tokens-details"
+      - "--kv-offloading-size"
+      - "33"
+      - "--kv-offloading-backend"
+      - "native"
+      - "--chat-template"
+      - "/app/chat_template_calc.jinja"
