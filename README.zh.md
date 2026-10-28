@@ -2,7 +2,7 @@
 
 > 一台单卡 AMD R9700 32 GB 的 GPU 跑 27B 的 3-bit 量化模型，在需要精度的地方偶尔还是会翻车。本文记录：为什么换回 27B、它弱点在哪、怎么把计算从模型里剥出去、以及 27 道曾经必错的题最后修好了 26 道。
 
-![封面](https://blog-eudc.infocused.cc/content/images/2026/10/cover-1280x720-1.png)
+![封面](assets/cover-1280x720.png)
 
 ## TL;DR
 
@@ -110,7 +110,7 @@ Paiton 27B 的绝对水平：**日常 110 题 102/110（92.7%）、高等数学 
 
 ---
 
-![架构](https://blog-eudc.infocused.cc/content/images/2026/10/arch-960x540-1.png)
+![架构](assets/arch-960x540.png)
 
 ## 3. 方案：把计算从模型里剥出去
 
